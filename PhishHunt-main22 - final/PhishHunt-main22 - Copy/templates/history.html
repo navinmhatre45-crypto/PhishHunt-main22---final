@@ -1,0 +1,465 @@
+{% extends "base.html" %}
+
+{% block title %}PhishHunt - Check History{% endblock %}
+
+{% block content %}
+<style>
+/* ===== History List Vertical Layout ===== */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+.history-item {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  background: var(--bg-card);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.05);
+  padding: 18px 20px;
+  gap: 20px;
+  transition: background 0.3s, transform 0.3s;
+}
+.history-item:hover {
+  background: rgba(255,255,255,0.05);
+  transform: translateY(-2px);
+}
+.history-result {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  min-width: 150px;
+}
+.history-url {
+  flex: 1;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  display: block;
+}
+.history-actions {
+  display: flex;
+  gap: 10px;
+}
+.history-actions button.btn-icon {
+  border: none;
+  background: rgba(255,255,255,0.05);
+  color: var(--text-light);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-size: 1.2rem;
+  margin: 0 2px;
+}
+.history-actions button.btn-icon:hover {
+  background: var(--primary);
+  color: #fff;
+}
+.history-actions .delete-btn:hover {
+  background: var(--danger);
+}
+.history-actions .share-btn:hover {
+  background: var(--success);
+}
+.history-actions .recheck-btn:hover {
+  background: var(--primary);
+}
+.stat-card {
+    cursor: pointer;
+    user-select: none;
+    transition: transform 0.3s, border-color 0.3s, background 0.3s;
+}
+.stat-card.active,
+.stat-card:active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+.stat-card.phishing.active,
+.stat-card.phishing:active {
+    background: var(--danger);
+    color: #fff;
+    border-color: var(--danger);
+}
+.stat-card.safe.active,
+.stat-card.safe:active {
+    background: var(--success);
+    color: #fff;
+    border-color: var(--success);
+}
+@media (max-width: 768px) {
+  .history-item {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 10px;
+  }
+  .history-result {
+    justify-content: center;
+  }
+}
+</style>
+
+<section class="profile-hero">
+    <div class="container">
+        <h1>Check History</h1>
+        <p>View your previous URL analysis results</p>
+    </div>
+</section>
+
+<section class="container history-content">
+    <div class="history-header">
+        <div class="history-stats">
+            <div class="stat-card total active" data-filter="all">
+                <div class="stat-number">{{ total_checks }}</div>
+                <div class="stat-label">Total Checks</div>
+            </div>
+            <div class="stat-card phishing" data-filter="phishing">
+                <div class="stat-number">{{ phishing_count }}</div>
+                <div class="stat-label">Phishing Detected</div>
+            </div>
+            <div class="stat-card safe" data-filter="safe">
+                <div class="stat-number">{{ safe_count }}</div>
+                <div class="stat-label">Safe URLs</div>
+            </div>
+        </div>
+
+        <div class="history-actions">
+            <button class="btn btn-outline" id="exportCsvBtn">
+                <i class="fas fa-download"></i> Export CSV
+            </button>
+            <button class="btn btn-danger" id="clearHistoryBtn">
+                <i class="fas fa-trash"></i> Clear History
+            </button>
+        </div>
+    </div>
+
+    <div class="history-filters">
+        <select id="filterType" onchange="filterHistory()">
+            <option value="all">All Results</option>
+            <option value="phishing">Phishing Only</option>
+            <option value="safe">Safe Only</option>
+        </select>
+        <input type="date" id="filterDate" onchange="filterHistory()" placeholder="Filter by date">
+        <input type="text" id="searchUrl" onkeyup="filterHistory()" placeholder="Search URLs...">
+    </div>
+
+    <div class="history-list">
+        {% for check in url_checks %}
+        <div class="history-item" data-type="{{ 'phishing' if check.is_phishing else 'safe' }}"
+            data-date="{{ check.checked_at.strftime('%Y-%m-%d') }}">
+            <div class="history-result">
+                <div class="result-badge {% if check.is_phishing %}phishing-badge{% else %}safe-badge{% endif %}">
+                    {% if check.is_phishing %}
+                    <i class="fas fa-exclamation-triangle"></i> Phishing
+                    {% else %}
+                    <i class="fas fa-check-circle"></i> Safe
+                    {% endif %}
+                </div>
+                <div class="confidence-score">
+                    {{ "%.1f"|format(check.confidence * 100) }}% confidence
+                </div>
+            </div>
+
+            <div class="history-url">
+                <a href="{{ check.url }}" target="_blank" class="url-link" rel="noopener noreferrer">{{ check.url }}</a>
+                <span class="check-date">{{ check.checked_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+
+            <!-- Added per-item action buttons: Recheck, Share, Delete -->
+            <div class="history-actions" aria-hidden="false">
+                <button class="btn-icon recheck-btn" title="Recheck this URL" aria-label="Recheck this URL" data-url="{{ check.url }}">
+                    <i class="fas fa-sync-alt" aria-hidden="true"></i>
+                </button>
+
+                <button class="btn-icon share-btn" title="Share this result" aria-label="Share this result"
+                        data-url="{{ check.url }}"
+                        data-is-phishing="{{ 'true' if check.is_phishing else 'false' }}">
+                    <i class="fas fa-share-alt" aria-hidden="true"></i>
+                </button>
+
+                <!-- <button class="btn-icon delete-check-btn" title="Delete this record" aria-label="Delete this record"
+                        data-check-id="{{ check.id }}">
+                    <i class="fas fa-trash" aria-hidden="true"></i>
+                </button> -->
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if not url_checks %}
+        <div class="empty-state">
+            <i class="fas fa-history"></i>
+            <h3>No check history yet</h3>
+            <p>Start by checking some URLs to see your history here.</p>
+            <a href="{{ url_for('home') }}" class="btn btn-primary">Check a URL</a>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function filterHistory() {
+        const typeFilter = document.getElementById('filterType').value;
+        const dateFilter = document.getElementById('filterDate').value;
+        const searchFilter = document.getElementById('searchUrl').value.toLowerCase();
+
+        const items = document.querySelectorAll('.history-item');
+
+        items.forEach(item => {
+            const itemType = item.dataset.type;
+            const itemDate = item.dataset.date;
+            const itemUrl = item.querySelector('.url-link').textContent.toLowerCase();
+
+            const typeMatch = typeFilter === 'all' || itemType === typeFilter;
+            const dateMatch = !dateFilter || itemDate === dateFilter;
+            const searchMatch = !searchFilter || itemUrl.includes(searchFilter);
+
+            if (typeMatch && dateMatch && searchMatch) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    // Use global script.js for button actions (recheck, share, delete)
+
+    // Stat card click filtering
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('click', function() {
+                // Remove active from all, add to clicked
+                document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                // Filter
+                const filterType = this.dataset.filter;
+                filterHistoryByType(filterType);
+            });
+        });
+    });
+
+    function filterHistoryByType(type) {
+        const items = document.querySelectorAll('.history-item');
+        items.forEach(item => {
+            const itemType = item.dataset.type;
+            if (type === 'all' || itemType === type) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    // Clear History button logic
+    document.addEventListener('DOMContentLoaded', function() {
+        const clearBtn = document.getElementById('clearHistoryBtn');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', function() {
+                if (!confirm('Are you sure you want to clear all your check history? This cannot be undone.')) return;
+                fetch('/clear_history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+                }).then(response => {
+                    if (response.ok) {
+                        // Remove all history items and show empty state
+                        const historyList = document.querySelector('.history-list');
+                        if (historyList) {
+                            historyList.innerHTML = `
+                                <div class="empty-state">
+                                    <i class="fas fa-history"></i>
+                                    <h3>No check history yet</h3>
+                                    <p>Start by checking some URLs to see your history here.</p>
+                                    <a href="/" class="btn btn-primary">Check a URL</a>
+                                </div>
+                            `;
+                        }
+                        // Optionally update stats
+                        document.querySelectorAll('.stat-number').forEach(el => el.textContent = '0');
+                        showNotification('History cleared successfully!', 'success');
+                    } else {
+                        showNotification('Failed to clear history', 'error');
+                    }
+                }).catch(() => {
+                    showNotification('Failed to clear history', 'error');
+                });
+            });
+        }
+
+        // Export CSV button logic
+        const exportBtn = document.getElementById('exportCsvBtn');
+        if (exportBtn) {
+            exportBtn.addEventListener('click', function() {
+                const rows = [];
+                // Header
+                rows.push(['URL', 'Result', 'Confidence', 'Checked At']);
+                document.querySelectorAll('.history-item').forEach(item => {
+                    if (item.style.display === 'none') return; // skip filtered out
+                    const url = item.querySelector('.url-link')?.textContent || '';
+                    const result = item.querySelector('.phishing-badge') ? 'Phishing' : 'Safe';
+                    const confidence = item.querySelector('.confidence-score')?.textContent || '';
+                    const checkedAt = item.querySelector('.check-date')?.textContent || '';
+                    rows.push([url, result, confidence, checkedAt]);
+                });
+                if (rows.length === 1) {
+                    showNotification('No history to export.', 'info');
+                    return;
+                }
+                // Convert to CSV
+                const csv = rows.map(r => r.map(v => `"${(v||'').replace(/"/g, '""')}"`).join(',')).join('\r\n');
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'phishhunt_history.csv';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+            });
+        }
+    });
+
+    // Event delegation for history actions (recheck, share, delete)
+    document.addEventListener('DOMContentLoaded', function() {
+        const historyList = document.querySelector('.history-list');
+        if (historyList) {
+            historyList.addEventListener('click', function(e) {
+                const target = e.target;
+
+                // Recheck button
+                const recheckBtn = target.closest('.recheck-btn');
+                if (recheckBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const url = recheckBtn.dataset.url;
+                    if (url) {
+                        // POST to /check_url so server renders the analysis result page immediately
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/check_url';
+                        form.style.display = 'none';
+
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'url';
+                        input.value = url;
+                        form.appendChild(input);
+
+                        document.body.appendChild(form);
+                        form.submit();
+                    }
+                    return;
+                }
+
+                // Share button
+                const shareBtn = target.closest('.share-btn');
+                if (shareBtn) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const url = shareBtn.dataset.url;
+                    const isPhishing = shareBtn.dataset.isPhishing === 'true';
+                    if (url) {
+                        const resultText = isPhishing ? '🚫 Phishing URL Detected' : '✅ Safe URL';
+                        const shareText = `${resultText}: ${url}\n\nChecked with PhishHunt - Stay safe online!`;
+
+                        // Try Web Share API with text first (some platforms ignore text when url is present)
+                        if (navigator.share) {
+                            navigator.share({
+                                title: 'PhishHunt URL Check Result',
+                                text: shareText
+                            }).then(() => {
+                                showNotification('Result shared successfully!', 'success');
+                            }).catch(() => {
+                                // If native sharing fails or ignores the text payload, copy composed text to clipboard
+                                copyToClipboard(shareText);
+                            });
+                        } else {
+                            // Fallback to clipboard (user can paste the full message)
+                            copyToClipboard(shareText);
+                        }
+                    }
+                    return;
+                }
+
+                // Delete button
+                // const deleteBtn = target.closest('.delete-check-btn');
+                // if (deleteBtn) {
+                //     e.preventDefault();
+                //     e.stopPropagation();
+                //     const checkId = deleteBtn.dataset.checkId;
+                //     if (checkId && confirm('Are you sure you want to delete this check record?')) {
+                //         fetch(`/delete_check/${checkId}`, {
+                //             method: 'DELETE',
+                //             headers: {
+                //                 'Content-Type': 'application/json',
+                //             }
+                //         }).then(response => {
+                //             if (response.ok) {
+                //                 showNotification('Check record deleted successfully!', 'success');
+                //                 const item = deleteBtn.closest('.history-item');
+                //                 if (item) {
+                //                     item.classList.add('removing');
+                //                     setTimeout(() => {
+                //                         item.remove();
+                //                         // Optionally update stats or show empty state
+                //                     }, 300);
+                //                 } else {
+                //                     location.reload();
+                //                 }
+                //             } else {
+                //                 showNotification('Failed to delete check record', 'error');
+                //             }
+                //         }).catch(() => {
+                //             showNotification('Failed to delete check record', 'error');
+                //         });
+                //     }
+                //     return;
+                // }
+            });
+        }
+    });
+
+    // Helper for clipboard fallback
+    function copyToClipboard(text) {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(() => {
+                showNotification('Result copied to clipboard!', 'success');
+            }).catch(() => {
+                fallbackCopyToClipboard(text);
+            });
+        } else {
+            fallbackCopyToClipboard(text);
+        }
+    }
+
+    function fallbackCopyToClipboard(text) {
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            showNotification('Result copied to clipboard!', 'success');
+        } catch (err) {
+            showNotification('Failed to copy result', 'error');
+        }
+        document.body.removeChild(textArea);
+    }
+</script>
+{% endblock %}

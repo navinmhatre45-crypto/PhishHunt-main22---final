@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="profile-hero">
+    <div class="container">
+      <h1>User Profile</h1>
+      <p>Manage your account and view your activity</p>
+    </div>
+  </section>
+
+  <section class="container profile-content">
+    <div class="profile-grid">
+      <!-- Profile Info Card -->
+      <div class="profile-card">
+        <div class="profile-header">
+          <div class="profile-avatar">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <div class="profile-info">
+            <h2>{{ current_user.username }}</h2>
+            <p class="user-email">{{ current_user.email }}</p>
+            <p class="member-since">Member since {{ current_user.created_at.strftime('%B %d, %Y') }}</p>
+          </div>
+        </div>
+        
+        <div class="profile-stats">
+          <button class="stat-item stat-btn" data-filter="all" style="cursor:pointer;">
+            <div class="stat-number">{{ user_stats.urls_checked }}</div>
+            <div class="stat-label">URLs Checked</div>
+          </button>
+          <button class="stat-item stat-btn" data-filter="phishing" style="cursor:pointer;">
+            <div class="stat-number">{{ user_stats.phishing_detected }}</div>
+            <div class="stat-label">Phishing Detected</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Account Settings Card -->
+      <div class="profile-card">
+        <h3>Account Settings</h3>
+        <form class="settings-form" action="{{ url_for('update_profile') }}" method="post">
+          <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" value="{{ current_user.username }}" required>
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ current_user.email }}" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Update Profile</button>
+        </form>
+      </div>
+
+      <!-- Recent Activity Card -->
+      <div class="profile-card activity-card">
+      <h3>Recent Activity</h3>
+      <div class="activity-list">
+        {% for activity in recent_activity %}
+        <div class="activity-item">
+          <div class="activity-icon">
+            {% if activity.activity_type == 'url_check' %}
+              <i class="fas fa-search"></i>
+            {% elif activity.activity_type == 'login' %}
+              <i class="fas fa-sign-in-alt"></i>
+            {% elif activity.activity_type == 'registration' %}
+              <i class="fas fa-user-plus"></i>
+            {% elif activity.activity_type == 'logout' %}
+              <i class="fas fa-sign-out-alt"></i>
+            {% elif activity.activity_type == 'profile_update' %}
+              <i class="fas fa-user-edit"></i>
+            {% elif activity.activity_type == 'password_change' %}
+              <i class="fas fa-key"></i>
+            {% else %}
+              <i class="fas fa-user"></i>
+            {% endif %}
+          </div>
+          <div class="activity-details">
+            <p class="activity-text">{{ activity.description }}</p>
+            <span class="activity-time">
+              {% if activity.local_timestamp %}
+                {{ activity.local_timestamp.strftime('%Y-%m-%d at %I:%M %p') }}
+              {% else %}
+                {{ activity.timestamp.strftime('%Y-%m-%d at %I:%M %p') }}
+              {% endif %}
+            </span>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-activity">
+          <i class="fas fa-history"></i>
+          <p>No recent activity</p>
+        </div>
+        {% endfor %}
+      </div>
+      </div>
+
+      <!-- Security Settings Card -->
+      <div class="profile-card">
+        <h3>Security Settings</h3>
+        <div class="security-options">
+          <div class="security-item">
+            <div class="security-info">
+              <h4>Change Password</h4>
+              <p>Update your password regularly for better security</p>
+            </div>
+            <button class="btn btn-outline" onclick="showChangePassword()">Change</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Change Password Modal -->
+  <div id="changePasswordModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('changePasswordModal')">&times;</span>
+      <h2>Change Password</h2>
+      <form class="auth-form" action="{{ url_for('change_password') }}" method="post">
+        <input type="password" name="current_password" placeholder="Current Password" required>
+        <input type="password" name="new_password" placeholder="New Password" required>
+        <input type="password" name="confirm_password" placeholder="Confirm New Password" required>
+        <button type="submit" class="btn btn-primary">Update Password</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function showChangePassword() {
+    closeAllModals();
+    document.getElementById('changePasswordModal').style.display = 'block';
+  }
+
+  function closeAllModals() {
+    const modals = document.getElementsByClassName('modal');
+    for (let modal of modals) modal.style.display = 'none';
+  }
+
+  // Stat card button click: go to history page and filter
+  document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.stat-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        // Redirect to history page with filter as query param
+        window.location.href = '/history' + (filter && filter !== 'all' ? '?filter=' + filter : '');
+      });
+    });
+  });
+</script>
+
+<style>
+  .empty-activity {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--gray);
+  }
+  
+  .empty-activity i {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    display: block;
+  }
+
+  .profile-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+  }
+  .stat-item.stat-btn {
+    background: rgba(255,255,255,0.05);
+    border: none;
+    outline: none;
+    transition: background 0.2s, box-shadow 0.2s;
+    cursor: pointer;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: none;
+  }
+  .stat-item.stat-btn:hover,
+  .stat-item.stat-btn:focus {
+    background: var(--primary);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(67,97,238,0.12);
+  }
+  .stat-item .stat-number {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--success);
+    margin-bottom: 5px;
+  }
+  .stat-item .stat-label {
+    color: var(--gray);
+    font-size: 0.9rem;
+  }
+</style>
+{% endblock %}

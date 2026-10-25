@@ -1,0 +1,556 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container">
+      <h1>Detect Phishing Links Instantly</h1>
+      <p>Advanced Machine Learning combined with Real-Time API checks to protect you from malicious websites</p>
+      <div class="hero-buttons">
+        <button class="btn btn-primary" style="padding: 15px 30px; font-size: 1.1rem;" onclick="scrollToSection('url-checker')">
+          <i class="fas fa-search"></i> Check URL Now
+        </button>
+        <!-- <button class="btn btn-outline" style="padding: 15px 30px; font-size: 1.1rem;" onclick="showGetStarted()">
+          <i class="fas fa-rocket"></i> Start Free Trial
+        </button> -->
+      </div>
+      <!-- hero-image was intentionally removed; keep markup balanced -->
+    </div>
+  </section>
+
+  <!-- URL Checker Section -->
+  <!-- Keep existing markup for the results card area (server may render it), we add a simple target container for AJAX results -->
+  <section id="url-checker" class="container url-checker">
+    <h2>Check Any URL for Phishing</h2>
+    <form class="check-form" action="{{ url_for('check_url') }}" method="post">
+      <input id="urlInput" type="text" name="url" placeholder="Enter a URL to check..." required>
+      <button type="submit">Analyze <i class="fas fa-search"></i></button>
+    </form>
+    <!-- RECENT SEARCHES SECTION - Initially hidden -->
+    <div class="recent-searches" id="recentSearches" style="display: none;">
+        <h4>Recent Searches</h4>
+        <div class="search-buttons" id="searchButtons">
+            <!-- Buttons will be dynamically added here -->
+        </div>
+        <div class="no-history" id="noHistory" style="display: none;">
+            <p>No recent searches yet. Check some URLs to see them here!</p>
+        </div>
+    </div>
+
+    <!-- Add a lightweight results container for AJAX responses -->
+    <div id="ajaxResults" style="margin-top:18px; display:none;">
+      <h3>Analysis (detailed)</h3>
+      <div id="stageRule" style="margin-bottom:8px;"></div>
+      <div id="stageSafe" style="margin-bottom:8px;"></div>
+      <div id="stageML" style="margin-bottom:8px;"></div>
+      <div id="finalVerdict" style="margin-top:12px; font-weight:700;"></div>
+    </div>
+  </section>
+
+  <!-- User Awareness Section (replaces technical "How It Works" and "Features") -->
+  <section id="user-awareness" class="features" style="background: rgba(19, 27, 46, 0.15); padding: 80px 0; margin-top: 40px;">
+    <div class="container">
+      <div class="section-title">
+        <h2>User Awareness</h2>
+        <p>Practical, non-technical advice to help everyone stay safe online</p>
+      </div>
+
+      <div class="features-grid">
+        <!-- Restored full set of awareness cards (6) as in the original UI -->
+        <div class="feature-card awareness-card"
+             role="button" tabindex="0"
+             data-title="Check the URL Carefully"
+             data-detail="Always check the exact domain (the main name). If the address uses extra words, misspellings, or strange characters it may be fake. Don’t enter passwords on such pages."
+             data-checklist="Verify the main domain (example.com)|Avoid misspellings and added words|Compare the address with the official website"
+             data-example="https://google.com"
+             data-quiz-question="Which part is most important to verify a site's identity?"
+             data-quiz-options="Subdomain|Main domain|URL path"
+             data-quiz-correct="Main domain">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="fas fa-eye"></i>
+          </div>
+          <h3>Check the URL Carefully</h3>
+        </div>
+
+        <div class="feature-card awareness-card"
+             role="button" tabindex="0"
+             data-title="Prefer HTTPS"
+             data-detail="Always prefer sites that use HTTPS with a valid certificate. The padlock helps ensure traffic is encrypted."
+             data-checklist="Look for the padlock|Avoid entering credentials on HTTP pages|Check certificate details"
+             data-example=""
+             data-quiz-question="What does the padlock in the browser indicate?"
+             data-quiz-options="Site is safe|Connection is encrypted|Site is verified"
+             data-quiz-correct="Connection is encrypted">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="fas fa-lock"></i>
+          </div>
+          <h3>Prefer HTTPS</h3>
+        </div>
+
+        <div class="feature-card awareness-card"
+             role="button" tabindex="0"
+             data-title="Be Cautious with Links"
+             data-detail="Hover over links to preview the real destination, and avoid shortened or obfuscated links from unknown senders."
+             data-checklist="Hover links to preview|Avoid shortened links from unknown senders|Check the displayed domain"
+             data-example=""
+             data-quiz-question="How can you preview where a link goes?"
+             data-quiz-options="Click it|Hover over it|Open in new tab"
+             data-quiz-correct="Hover over it">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="fas fa-envelope"></i>
+          </div>
+          <h3>Be Cautious with Links</h3>
+        </div>
+
+        <div class="feature-card awareness-card"
+             role="button" tabindex="0"
+             data-title="Never Share Credentials"
+             data-detail="Never enter passwords or OTPs on pages reached via unsolicited links. Use official sites and password managers."
+             data-checklist="Use unique passwords|Use password manager|Never share OTPs"
+             data-example=""
+             data-quiz-question="Should you share OTPs with support staff?"
+             data-quiz-options="Yes|No|Sometimes"
+             data-quiz-correct="No">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="fas fa-user-secret"></i>
+          </div>
+          <h3>Never Share Credentials</h3>
+        </div>
+
+        <div class="feature-card awareness-card"
+             role="button" tabindex="0"
+             data-title="Look for Urgency Tricks"
+             data-detail="Phishers often create a false sense of urgency. Pause, verify, and don't act under pressure."
+             data-checklist="Watch for urgent language|Verify via official channels|Don't rush to click links"
+             data-example=""
+             data-quiz-question="What is a common phishing tactic?"
+             data-quiz-options="Urgent action required|Detailed legal notice|Friendly greeting"
+             data-quiz-correct="Urgent action required">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <h3>Look for Urgency Tricks</h3>
+        </div>
+
+        <div class="feature-card awareness-card"
+             role="button" tabindex="0"
+             data-title="When Unsure, Ask"
+             data-detail="If a message or link looks suspicious, contact the service provider using known official channels before taking action."
+             data-checklist="Verify via official app/site|Contact support using official contact info|Ask a trusted colleague"
+             data-example=""
+             data-quiz-question="If unsure about a link you received, you should:"
+             data-quiz-options="Open it|Forward to others|Verify with official support"
+             data-quiz-correct="Verify with official support">
+          <div class="feature-icon" aria-hidden="true">
+            <i class="fas fa-headset"></i>
+          </div>
+          <h3>When Unsure, Ask</h3>
+        </div>
+      </div>
+
+      <!-- Awareness detail modal (simple read-only modal with checklist, quiz & example) -->
+      <div id="awarenessModal" class="modal" style="display:none;">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="awarenessTitle">
+          <span class="close" onclick="closeModal('awarenessModal')">&times;</span>
+
+          <!-- Header: animated SVG + title -->
+          <div style="display:flex;gap:12px;align-items:center;">
+            <div class="aw-illu" aria-hidden="true" style="flex:0 0 54px;">
+              <!-- Animated, low-CPU SVG (magnifier + pulsing ring) -->
+              <svg viewBox="0 0 64 64" width="54" height="54" xmlns="http://www.w3.org/2000/svg" fill="none" role="img" aria-hidden="true">
+                <defs>
+                  <linearGradient id="awG" x1="0" x2="1">
+                    <stop offset="0" stop-color="#4cc9f0"/>
+                    <stop offset="1" stop-color="#4361ee"/>
+                  </linearGradient>
+                </defs>
+
+                <!-- pulsing ring -->
+                <circle class="aw-ring" cx="32" cy="24" r="14" stroke="url(#awG)" stroke-width="2" fill="rgba(255,255,255,0.02)"/>
+
+                <!-- magnifier lens -->
+                <circle class="aw-lens" cx="32" cy="24" r="9" stroke="rgba(255,255,255,0.12)" stroke-width="1.5" fill="rgba(255,255,255,0.02)"/>
+
+                <!-- handle -->
+                <rect x="43" y="33" width="12" height="3" rx="1.5" transform="rotate(35 43 33)" fill="rgba(255,255,255,0.06)"/>
+              </svg>
+            </div>
+
+            <div style="flex:1 1 auto;">
+              <h2 id="awarenessTitle" class="modal-title" style="margin-bottom:6px;"></h2>
+              <div class="modal-subtitle" style="color:var(--gray);font-size:0.95rem;">Short, clear tips for everyone</div>
+            </div>
+          </div>
+
+          <div id="awarenessBody" class="modal-body" style="color:var(--gray);line-height:1.5;margin-top:12px;"></div>
+
+          <!-- checklist -->
+          <ul id="awarenessChecklist" class="awareness-checklist" style="margin-top:12px;"></ul>
+
+          <!-- micro-quiz: shown if card has data-quiz-question -->
+          <div id="awarenessQuiz" style="margin-top:14px; display:none;">
+            <div id="quizQuestion" style="font-weight:600;margin-bottom:8px;"></div>
+            <div id="quizOptions"></div>
+            <div id="quizFeedback" style="margin-top:8px; display:none;"></div>
+            <div style="margin-top:10px;text-align:right;">
+              <button id="quizSubmit" type="button" class="btn btn-primary">Submit Answer</button>
+            </div>
+          </div>
+
+          <div style="margin-top:18px;text-align:right;">
+            <button id="awExampleBtn" type="button" class="btn btn-outline" style="margin-right:8px; display:none;">Try example</button>
+            <button type="button" class="btn btn-primary" onclick="closeModal('awarenessModal')">Got it</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Section -->
+<section id="about" class="features">
+  <div class="container">
+    <div class="section-title">
+      <h2>About PhishHunt</h2>
+      <p>Your trusted partner in <strong>cybersecurity education</strong> and <strong>real-time phishing protection</strong></p>
+    </div>
+    
+    <div class="about-content">
+      <div class="about-text">
+        <!-- Mission Section -->
+        <div class="mission-card">
+          <h3>🎯 Our Mission</h3>
+          <p>PhishHunt was developed as a comprehensive academic project with a clear mission: <strong>to make the internet safer for everyone</strong>. We combine cutting-edge machine learning technology with real-time threat intelligence to provide accurate phishing detection and cybersecurity education.</p>
+        </div>
+        
+        <!-- Why Choose PhishHunt -->
+        <div class="features-card">
+          <h3>⭐ Why Choose PhishHunt?</h3>
+          <div class="features-list">
+            <div class="feature-item">
+              <span class="feature-icon">⚡</span>
+              <div class="feature-content">
+                <strong>Real-time Analysis</strong>
+                <p>Instant results in seconds with hybrid detection</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🎯</span>
+              <div class="feature-content">
+                <strong>High Accuracy</strong>
+                <p>Multi-layered threat detection system</p>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🛡️</span>
+              <div class="feature-content">
+                <strong>API Integration</strong>
+                <p>Google Safe Browsing + Rule-based checks</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Technology Stack -->
+        <div class="tech-card">
+          <h3>🔧 Technology Stack</h3>
+          <p>Built with a robust technology stack including <strong>Python Flask, Scikit-Learn, ensemble machine learning models</strong>, and integrated with <strong>Google Safe Browsing API</strong></p>
+          <div class="tech-badges">
+            <span class="tech-badge">Python Flask</span>
+            <span class="tech-badge">Scikit-Learn</span>
+            <span class="tech-badge">Machine Learning</span>
+            <span class="tech-badge">Google Safe Browsing API</span>
+            <span class="tech-badge">SQLite Database</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Right Side Stats Section -->
+      <div class="about-stats">
+        <!-- Total URLs Checked - DYNAMIC -->
+        <div class="stat-card">
+          <div class="stat-icon">🔗</div>
+          <div id="totalChecksCount" class="stat-number">{{ total_checks }}+</div>
+          <div class="stat-label">URLs Analyzed</div>
+          <div class="stat-desc">Real-time phishing detection</div>
+        </div>
+
+        <!-- Analysis Speed -->
+        <div class="stat-card">
+          <div class="stat-icon">⚡</div>
+          <div class="stat-number">&lt;3s</div>
+          <div class="stat-label">Analysis Time</div>
+          <div class="stat-desc">Rapid threat detection</div>
+        </div>
+
+        <!-- Ensemble Models -->
+        <div class="stat-card models-card">
+          <div class="stat-icon">🧠</div>
+          <div class="stat-label">Ensemble Models</div>
+          <div class="models-list">
+            <div class="model-item">
+              <span>Logistic Regression</span>
+            </div>
+            <div class="model-item">
+              <span>Decision Tree</span>
+            </div>
+            <div class="model-item">
+              <span>Support Vector Classifier</span>
+            </div>
+          </div>
+        </div>
+
+        
+  </div>
+</style>
+
+
+<script>
+// Animation for counter
+document.addEventListener('DOMContentLoaded', function() {
+  const counter = document.getElementById('totalChecksCount');
+  if (counter && !isNaN(parseInt(counter.textContent))) {
+    let current = 0;
+    const target = parseInt(counter.textContent);
+    const increment = target / 50;
+    
+    const updateCounter = () => {
+      current += increment;
+      if (current < target) {
+        counter.textContent = Math.floor(current) + '+';
+        setTimeout(updateCounter, 30);
+      } else {
+        counter.textContent = target + '+';
+      }
+    };
+    
+    updateCounter();
+  }
+});
+</script>
+ 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Expose auth status
+  window.IS_AUTHENTICATED = {{ 'true' if current_user.is_authenticated else 'false' }};
+</script>
+
+<script>
+  // Consolidated DOM ready handler to avoid duplicate listeners and race conditions
+  document.addEventListener('DOMContentLoaded', function() {
+    // --- Nav cleanup: remove unwanted nav items and ensure "Awareness" exists ---
+    try {
+      document.querySelectorAll('nav a').forEach(a => {
+        const txt = a.textContent.trim().toLowerCase();
+        if (txt === 'how it works' || txt === 'features') {
+          // remove the entire list item if possible to avoid leaving empty elements
+          const li = a.closest('li');
+          if (li && li.parentElement) li.parentElement.removeChild(li);
+          else if (a.parentElement) a.parentElement.removeChild(a);
+        }
+      });
+
+      // Ensure Awareness menu item exists and links to #user-awareness
+      let found = false;
+      document.querySelectorAll('nav a').forEach(a => {
+        if (a.textContent.trim().toLowerCase() === 'awareness') {
+          a.setAttribute('href', '#user-awareness');
+          found = true;
+        }
+      });
+      if (!found) {
+        const nav = document.querySelector('nav ul');
+        if (nav) {
+          const li = document.createElement('li');
+          li.innerHTML = '<a href="#user-awareness">Awareness</a>';
+          nav.appendChild(li);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    }
+
+    // --- Interactive animations & hover (single setup) ---
+    document.querySelectorAll('.feature-card').forEach(card => {
+      card.style.cursor = 'pointer';
+      card.addEventListener('mouseenter', function() {
+        this.style.animation = 'pulse 1.5s infinite';
+      });
+      card.addEventListener('mouseleave', function() {
+        this.style.animation = 'none';
+      });
+    });
+
+    // --- Awareness card modal hookup ---
+    document.querySelectorAll('.feature-card.awareness-card').forEach(card => {
+      function openCard() {
+        const title = card.dataset.title || card.querySelector('h3')?.textContent || '';
+        const detail = card.dataset.detail || '';
+        const checklistRaw = card.dataset.checklist || ''; // pipe-separated
+        const example = card.dataset.example || '';
+
+        document.getElementById('awarenessTitle').textContent = title;
+        document.getElementById('awarenessBody').textContent = detail;
+
+        // checklist
+        const checklistContainer = document.getElementById('awarenessChecklist');
+        checklistContainer.innerHTML = '';
+        if (checklistRaw) {
+          checklistRaw.split('|').forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = item.trim();
+            checklistContainer.appendChild(li);
+          });
+        } else {
+          const li = document.createElement('li');
+          li.textContent = 'Follow basic safety steps: check domain, HTTPS, and sender.';
+          checklistContainer.appendChild(li);
+        }
+
+        // example button
+        const exampleBtn = document.getElementById('awExampleBtn');
+        if (example) {
+          exampleBtn.style.display = 'inline-block';
+          exampleBtn.onclick = function() {
+            const input = document.getElementById('urlInput') || document.querySelector('input[name="url"]');
+            if (input) {
+              input.value = example;
+              input.focus();
+              document.getElementById('url-checker') && document.getElementById('url-checker').scrollIntoView({ behavior: 'smooth' });
+            } else {
+              window.location.href = `/?url=${encodeURIComponent(example)}`;
+            }
+            document.getElementById('awarenessModal').style.display = 'none';
+          };
+        } else {
+          exampleBtn.style.display = 'none';
+          exampleBtn.onclick = null;
+        }
+
+        // quiz population
+        const quizQ = card.dataset.quizQuestion;
+        if (quizQ) {
+          const optionsRaw = card.dataset.quizOptions || '';
+          const options = optionsRaw.split('|').map(s => s.trim()).filter(Boolean);
+          const correct = (card.dataset.quizCorrect || '').trim();
+
+          document.getElementById('awarenessQuiz').style.display = 'block';
+          document.getElementById('quizQuestion').textContent = quizQ;
+          const optsContainer = document.getElementById('quizOptions');
+          optsContainer.innerHTML = '';
+          options.forEach((opt, idx) => {
+            const id = `quiz_opt_${idx}_${Math.random().toString(36).slice(2,7)}`;
+            const wrapper = document.createElement('div');
+            wrapper.className = 'quiz-option';
+            wrapper.innerHTML = `
+              <label for="${id}">
+                <input type="radio" name="quizOption" id="${id}" value="${opt}"> ${opt}
+              </label>
+            `;
+            optsContainer.appendChild(wrapper);
+          });
+
+          const feedback = document.getElementById('quizFeedback');
+          feedback.style.display = 'none';
+          feedback.textContent = '';
+
+          const submit = document.getElementById('quizSubmit');
+          submit.disabled = false;
+          submit.onclick = function() {
+            const selected = document.querySelector('input[name="quizOption"]:checked');
+            if (!selected) {
+              feedback.style.display = 'block';
+              feedback.style.color = 'var(--warning)';
+              feedback.textContent = 'Please select an option.';
+              return;
+            }
+            const value = selected.value;
+            const correctAnswer = correct;
+            const isCorrect = String(value).trim().toLowerCase() === String(correctAnswer).trim().toLowerCase();
+
+            feedback.style.display = 'block';
+            feedback.style.color = isCorrect ? 'var(--success)' : 'var(--danger)';
+            feedback.textContent = isCorrect ? 'Correct — well done!' : `Not correct. Correct answer: ${correctAnswer}`;
+
+            submit.disabled = true;
+          };
+        } else {
+          document.getElementById('awarenessQuiz').style.display = 'none';
+        }
+
+        // show modal
+        const modal = document.getElementById('awarenessModal');
+        if (modal) {
+          modal.style.display = 'block';
+          const focusable = modal.querySelector('.btn-primary') || modal.querySelector('.close');
+          if (focusable) focusable.focus();
+        }
+      }
+
+      // mouse and keyboard openers
+      card.addEventListener('click', openCard);
+      card.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openCard();
+        }
+      });
+    });
+
+    // Close modal on outside click
+    window.addEventListener('click', function(event) {
+      const modal = document.getElementById('awarenessModal');
+      if (modal && event.target === modal) {
+        modal.style.display = 'none';
+      }
+    });
+
+    // Fetch and display total system checks
+    const totalEl = document.getElementById('totalChecksCount');
+    async function fetchStats() {
+      if (!totalEl) return;
+      try {
+        const resp = await fetch('/api/stats', { cache: 'no-store' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const n = parseInt(data.total_checks || 0, 10);
+        if (String(totalEl.textContent) !== String(n)) {
+          totalEl.textContent = n;
+        }
+      } catch (e) {
+        console.error('failed to fetch stats', e);
+      }
+    }
+    fetchStats();
+    setInterval(fetchStats, 5000);
+  });
+
+  // Ensure the URL form performs a normal POST to server (/check_url -> result.html).
+  // Replace the form node with a clone to remove any previously attached JS submit listeners
+  // (this restores the original server-rendered flow).
+  document.addEventListener('DOMContentLoaded', function() {
+    try {
+      const form = document.querySelector('.check-form');
+      if (form && form.parentNode) {
+        const clone = form.cloneNode(true); // event listeners are not cloned
+        // Ensure the clone keeps the server-rendered action & method (should be /check_url POST)
+        form.parentNode.replaceChild(clone, form);
+      }
+    } catch (e) {
+      console.error('Failed to reset form handlers', e);
+    }
+  });
+
+  // Helper functions usable elsewhere (unchanged)
+  function scrollToSection(sectionId) {
+    const el = document.getElementById(sectionId);
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) modal.style.display = 'none';
+  }
+</script>
+{% endblock %}

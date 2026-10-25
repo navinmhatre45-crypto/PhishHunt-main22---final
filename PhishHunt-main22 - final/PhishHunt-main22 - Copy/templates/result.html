@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}PhishHunt - Analysis Results{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='result.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="result-center-wrapper" style="margin-top:70px;">
+  <section class="result-hero" style="padding:0;margin:0;">
+    <div class="container" style="margin-top:0;padding-top:0;">
+      <h1 style="margin-bottom: 0;">Analysis Results</h1>
+    </div>
+  </section>
+
+  <div class="result-card result-main-centered">
+    <h3>URL Analyzed</h3>
+    <p class="url-display">{{ url }}</p>
+
+    <h3>Final Verdict</h3>
+    {% if result.final_result == 'Phishing' %}
+    <div class="verdict phishing-verdict">
+      <i class="fas fa-exclamation-triangle"></i>
+      PHISHING DETECTED
+    </div>
+    {% elif result.final_result == 'Legitimate' %}
+    <div class="verdict legitimate-verdict">
+      <i class="fas fa-check-circle"></i>
+      LEGITIMATE URL
+    </div>
+    {% else %}
+    <div class="verdict suspicious-verdict">
+      <i class="fas fa-question-circle"></i>
+      SUSPICIOUS
+    </div>
+    {% endif %}
+
+    <div style="margin-top:18px;">
+      {% if result.final_result == 'Legitimate' %}
+      <div style="color:var(--success);font-size:1rem;margin-bottom:8px;font-weight:600;">
+        This URL is safe.
+      </div>
+      {% elif result.final_result == 'Phishing' %}
+      <div style="color:var(--danger);font-size:1rem;margin-bottom:8px;font-weight:600;">
+        This URL is not safe.
+      </div>
+      {% else %}
+      <div style="color:var(--warning);font-size:1rem;margin-bottom:8px;font-weight:600;">
+        This URL is suspicious.
+      </div>
+      {% endif %}
+      <div style="color:var(--gray);font-size:0.95rem;">
+        {{ result.explanation }}
+      </div>
+    </div>
+
+    <div style="margin-top:18px;">
+       <a href="/" class="btn btn-outline">Check another URL</a>
+         {% if result.final_result == 'Phishing' %}
+            <!-- changed: button so we can intercept clicks and show warning modal -->
+            <button id="proceedAnywayBtn" type="button" class="btn btn-primary" style="margin-left:10px;">Proceed Anyway</button>
+         {% else %}
+            <a class="btn btn-primary" href="{{ url }}" target="_blank" style="margin-left:10px;">Open Site</a>
+         {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Phishing Warning Modal (show on demand when user clicks Proceed Anyway) -->
+<div id="phishModal" class="modal" {% if result.final_result != 'Phishing' %} style="display:none;" {% endif %}>
+  <div class="modal-content" style="max-width:520px;">
+    <span class="close" id="modalClose">&times;</span>
+    <h2 style="color: var(--danger); margin-bottom:8px;">Security Warning</h2>
+    <p style="color:var(--gray); margin-bottom:12px;">This link has been flagged as potentially malicious. For your safety we will not open this site. Please avoid visiting it.</p>
+    <div style="display:flex;justify-content:flex-end;gap:10px;">
+      <!-- single OK button that only dismisses the warning -->
+      <button class="btn btn-primary" id="phishModalOk">OK</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const isPhish = {{ 'true' if result.final_result == 'Phishing' else 'false' }};
+    const modal = document.getElementById('phishModal');
+    const modalClose = document.getElementById('modalClose');
+    const modalOk = document.getElementById('phishModalOk');
+    const proceedBtn = document.getElementById('proceedAnywayBtn');
+
+    function hideModal() {
+      if (modal) modal.style.display = 'none';
+    }
+
+    // Do NOT auto-show the warning on page load.
+    // Show the warning only when user explicitly clicks "Proceed Anyway".
+    if (proceedBtn) {
+      proceedBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        // Only show the modal; do NOT open the external site.
+        if (modal) modal.style.display = 'block';
+      });
+    }
+
+    if (modalOk) {
+      modalOk.addEventListener('click', function() {
+        hideModal();
+        // Optionally notify user explicitly
+        if (typeof showNotification === 'function') {
+          showNotification('For your safety the site will not be opened.', 'warning');
+        }
+      });
+    }
+
+    if (modalClose) {
+      modalClose.addEventListener('click', function() {
+        hideModal();
+      });
+    }
+
+    // Defensive: if the page included other proceed/open handlers, ensure they don't auto-open on phishing.
+    // No navigation performed here for phishing flow.
+  });
+</script>
+{% endblock %}

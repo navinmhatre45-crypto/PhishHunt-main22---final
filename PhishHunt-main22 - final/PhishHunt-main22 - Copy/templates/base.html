@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}PhishHunt{% endblock %}</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+  <!-- Header -->
+  <header>
+    <div class="container header-content">
+      <div class="logo">
+        <i class="fas fa-shield-alt"></i>
+        <span>PhishHunt</span>
+      </div>
+      <nav>
+        <ul>
+          <li><a href="{{ url_for('home') }}">Home</a></li>
+          <li><a href="#user-awareness">Awareness</a></li>
+          <li><a href="#about">About</a></li>
+          {% if current_user.is_authenticated %}
+          <li><a href="{{ url_for('profile') }}">Profile</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+      <div class="auth-buttons">
+        {% if current_user.is_authenticated %}
+          <div class="user-menu">
+            <button class="btn btn-outline" onclick="toggleUserMenu()">
+              <i class="fas fa-user"></i> {{ current_user.username }}
+            </button>
+            <div class="user-dropdown" id="userDropdown">
+              <a href="{{ url_for('profile') }}"><i class="fas fa-user-circle"></i> Profile</a>
+              <a href="{{ url_for('history') }}"><i class="fas fa-history"></i> History</a>
+              <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+            </div>
+          </div>
+        {% else %}
+          <!-- stable IDs so JS attaches reliably -->
+          <button id="btnSignIn" class="btn btn-outline" onclick="showSignIn()">Sign In</button>
+          <button id="btnGetStarted" class="btn btn-primary" onclick="showGetStarted()">Get Started</button>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <!-- Simplified footer -->
+  <footer style="background: var(--bg-card); padding: 20px 0; margin-top: 60px; border-top: 1px solid rgba(255,255,255,0.05);">
+    <div class="container" style="display:flex; flex-direction:column; align-items:flex-start; gap:8px;">
+      <div style="color:var(--text-light); font-weight:700;">PhishHunt</div>
+      <div style="color:var(--gray); font-size:0.95rem;">
+        Advanced phishing detection using Machine Learning and real-time threat intelligence.
+      </div>
+      <div style="width:100%; text-align:center; color:var(--gray); font-size:0.9rem; margin-top:8px;">
+        © 2025 PhishHunt | Cybersecurity Awareness Project
+      </div>
+    </div>
+  </footer>
+
+  <!-- Sign In Modal (kept in base so available on every page) -->
+  <div id="signInModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('signInModal')">&times;</span>
+      <h2>Sign In</h2>
+      <form class="auth-form" action="{{ url_for('login') }}" method="post">
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit" class="btn btn-primary">Sign In</button>
+      </form>
+      <p class="auth-switch">Don't have an account? <a href="#" onclick="showGetStarted(); closeModal('signInModal')">Get Started</a></p>
+    </div>
+  </div>
+
+  <!-- Get Started Modal -->
+  <div id="getStartedModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal('getStartedModal')">&times;</span>
+      <h2>Get Started</h2>
+      <form class="auth-form" action="{{ url_for('register') }}" method="post">
+        <input type="text" name="username" placeholder="Username" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit" class="btn btn-primary">Create Account</button>
+      </form>
+      <p class="auth-switch">Already have an account? <a href="#" onclick="showSignIn(); closeModal('getStartedModal')">Sign In</a></p>
+    </div>
+  </div>
+
+  <!-- Robust modal helpers and header bindings -->
+  <script>
+    (function () {
+      function showModalById(id) {
+        const modal = document.getElementById(id);
+        if (!modal) return false;
+        modal.style.display = 'block';
+        const focusable = modal.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (focusable) focusable.focus();
+        return true;
+      }
+
+      function closeModalLocal(modalOrId) {
+        const modal = typeof modalOrId === 'string' ? document.getElementById(modalOrId) : modalOrId;
+        if (!modal) return;
+        modal.style.display = 'none';
+      }
+
+      window.closeModal = closeModalLocal;
+
+      function ensureFallbackAuthModal() {
+        if (document.getElementById('fallbackAuthModal')) return;
+        const wrapper = document.createElement('div');
+        wrapper.id = 'fallbackAuthModal';
+        wrapper.className = 'modal';
+        wrapper.style.display = 'none';
+        wrapper.innerHTML = `
+          <div class="modal-content" role="dialog" aria-modal="true" style="max-width:420px;">
+            <span class="close" data-close="true" style="cursor:pointer">&times;</span>
+            <h3 id="fallbackAuthTitle">Sign In</h3>
+            <form id="fallbackAuthForm" method="post" action="/login" style="display:flex;flex-direction:column;gap:8px;">
+              <input name="email" type="email" placeholder="Email" required>
+              <input name="password" type="password" placeholder="Password" required>
+              <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary">Sign In</button>
+                <button type="button" class="btn btn-outline" data-switch="signup">Create account</button>
+              </div>
+            </form>
+            <form id="fallbackSignupForm" method="post" action="/register" style="display:none;flex-direction:column;gap:8px;">
+              <input name="username" type="text" placeholder="Username" required>
+              <input name="email" type="email" placeholder="Email" required>
+              <input name="password" type="password" placeholder="Password" required>
+              <div style="display:flex;gap:8px;justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary">Create</button>
+                <button type="button" class="btn btn-outline" data-switch="signin">Back to sign in</button>
+              </div>
+            </form>
+          </div>
+        `;
+        document.body.appendChild(wrapper);
+        wrapper.addEventListener('click', function (ev) {
+          if (ev.target === wrapper || ev.target.dataset.close === 'true') closeModalLocal(wrapper);
+        });
+        wrapper.querySelectorAll('[data-switch]').forEach(btn => {
+          btn.addEventListener('click', function () {
+            const target = this.dataset.switch;
+            wrapper.querySelector('#fallbackAuthForm').style.display = target === 'signin' ? 'flex' : 'none';
+            wrapper.querySelector('#fallbackSignupForm').style.display = target === 'signup' ? 'flex' : 'none';
+            wrapper.querySelector('#fallbackAuthTitle').textContent = target === 'signin' ? 'Sign In' : 'Create account';
+          });
+        });
+      }
+
+      function openAuthModal(mode) {
+        const candidateIds = mode === 'signup' ? ['getStartedModal','signupModal','registerModal'] : ['signInModal','signinModal','loginModal','authModal'];
+        for (const id of candidateIds) {
+          if (showModalById(id)) return true;
+        }
+        const selector = mode === 'signup' ? '[data-target="#signupModal"],[data-target="#registerModal"]' : '[data-target="#signinModal"],[data-target="#loginModal"]';
+        const el = document.querySelector(selector);
+        if (el) {
+          const target = el.getAttribute('data-target').replace('#','');
+          if (showModalById(target)) return true;
+        }
+        if (mode === 'signin' && typeof window.showSignIn === 'function') {
+          try { window.showSignIn(); return true; } catch(e) {}
+        }
+        if (mode === 'signup' && typeof window.showGetStarted === 'function') {
+          try { window.showGetStarted(); return true; } catch(e) {}
+        }
+        ensureFallbackAuthModal();
+        const fallback = document.getElementById('fallbackAuthModal');
+        if (!fallback) return false;
+        if (mode === 'signup') {
+          fallback.querySelector('#fallbackAuthForm').style.display = 'none';
+          fallback.querySelector('#fallbackSignupForm').style.display = 'flex';
+          fallback.querySelector('#fallbackAuthTitle').textContent = 'Create account';
+        } else {
+          fallback.querySelector('#fallbackAuthForm').style.display = 'flex';
+          fallback.querySelector('#fallbackSignupForm').style.display = 'none';
+          fallback.querySelector('#fallbackAuthTitle').textContent = 'Sign In';
+        }
+        fallback.style.display = 'block';
+        return true;
+      }
+
+      function attachHeaderHandlers() {
+        const s = document.getElementById('btnSignIn');
+        if (s && !s.__auth) {
+          s.__auth = true;
+          s.addEventListener('click', function (e) { e.preventDefault(); openAuthModal('signin'); });
+        }
+        const g = document.getElementById('btnGetStarted');
+        if (g && !g.__auth) {
+          g.__auth = true;
+          g.addEventListener('click', function (e) { e.preventDefault(); openAuthModal('signup'); });
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        attachHeaderHandlers();
+        setTimeout(attachHeaderHandlers, 600);
+      });
+
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') document.querySelectorAll('.modal').forEach(m => m.style.display = 'none');
+      });
+
+      window.showSignIn = function() { return openAuthModal('signin'); };
+      window.showGetStarted = function() { return openAuthModal('signup'); };
+      window.showSignUp = window.showGetStarted;
+
+      window.toggleUserMenu = function() {
+        const d = document.getElementById('userDropdown');
+        if (!d) return;
+        d.classList.toggle('show');
+      };
+      document.addEventListener('click', function(e) {
+        const d = document.getElementById('userDropdown');
+        const btn = document.querySelector('.user-menu button');
+        if (!d) return;
+        if (btn && (btn.contains(e.target) || d.contains(e.target))) return;
+        d.classList.remove('show');
+      });
+
+    })();
+  </script>
+
+  {% block extra_js %}{% endblock %}
+</body>
+</html>
